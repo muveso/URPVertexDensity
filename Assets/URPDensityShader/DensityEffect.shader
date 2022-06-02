@@ -2,15 +2,19 @@ Shader "Muveso/Density"
 {
     Properties
     {
-    	[PowerSlider(3.0)] _Tolerance("Tolerance", Range(0, 50)) = 45.0
-    	[PowerSlider(3.0)] _Brightness("Brightness", Range(0, 10)) = 1
+    	[MaterialToggle] _isEnabled("Effect Enabled", Float) = 1
+    	_defaultColor("Default Color", Color) = (.5, .8, 1, 1)
+    	[PowerSlider(3.0)] _Tolerance("Tolerance", Range(0, 50)) = 1.15
+    	[PowerSlider(3.0)] _Brightness("Brightness", Range(1, 3)) = 2
+    	[PowerSlider(3.0)] _Saturation("Saturation", Range(1, 10)) = 2
+    	[PowerSlider(3.0)] _Contrast("Contrast", Range(0.25, 10)) = 2
     }
     SubShader
     {
         Tags 
         {
             "RenderPipeline" = "UniversalPipeline"
-            "RenderType"="Opaque"
+            "RenderType" = "Opaque"
         }
 
         Pass
@@ -23,15 +27,6 @@ Shader "Muveso/Density"
 			#pragma geometry geom
             
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-
-            // GPU Instancing
-            #pragma multi_compile_instancing
-            #pragma multi_compile_fog
-
-            // Receiving Shadow Options
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
-            #pragma multi_compile _ _SHADOWS_SOFT
 
             // Transformations : CG -> HLSL Compatability
             #define UnityObjectToClipPos(x)     TransformObjectToHClip(x)
@@ -56,7 +51,6 @@ Shader "Muveso/Density"
             {
                 float4 vertex : SV_POSITION;
                 float3 worldPos : TEXCOORD1;
-
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -64,7 +58,7 @@ Shader "Muveso/Density"
 			{
 				float4 pos : SV_POSITION;
 				half4 col : COLOR;
-				float3 normal : NORMAL;
+            	float3 normal : NORMAL;
 				float3 worldSpacePos : TEXCOORD1;
 			};
             
@@ -73,8 +67,12 @@ Shader "Muveso/Density"
             ******************************************************************/
             CBUFFER_START(UnityPerMaterial)
 
+            float _isEnabled;
+            half4 _defaultColor;
             float _Tolerance;
             float _Brightness;
+            float _Contrast;
+            float _Saturation;
 
             CBUFFER_END
 
@@ -83,6 +81,11 @@ Shader "Muveso/Density"
 				float4 K = float4( 1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0 );
 				float3 p = abs( frac( c.xxx + K.xyz ) * 6.0 - K.www );
 				return c.z * lerp( K.xxx, saturate( p - K.xxx ), c.y );
+			}
+
+            half3 AdjustContrast(half3 color, half contrast)
+            {
+			    return saturate(lerp(half3(0.5, 0.5, 0.5), color, contrast));
 			}
 
             [maxvertexcount(3)]
@@ -100,16 +103,16 @@ Shader "Muveso/Density"
 				
 				for (int i = 0; i < 3; i++)
 				{
-						o.pos = IN[i].vertex;
-						o.normal = normal;
-						float c = _Tolerance * (0.01 + sqrt(area));
-						c = clamp(c, 0, 0.65);
-						float3 hsv = float3(c, 1, 1);
-						float3 rgb = HSVToRGB(hsv);
-						o.col = half4(rgb.r, rgb.g, rgb.b, 1);
-						o.worldSpacePos = IN[i].worldPos;
-
-						tristream.Append(o);
+					o.pos = IN[i].vertex;
+					o.normal = normal;
+					float c = _Tolerance * (0.01 + sqrt(area));
+					c = clamp(c, 0, 0.65);
+					
+					float3 hsv = float3(c, 1 * _Saturation, 1);
+					float3 rgb = HSVToRGB(hsv);
+					o.col = half4(rgb.r, rgb.g, rgb.b, 1);
+					o.worldSpacePos = IN[i].worldPos;
+					tristream.Append(o);
 				}
 			}
             
@@ -136,9 +139,16 @@ Shader "Muveso/Density"
                 float3 lightDir = normalize(_MainLightPosition.xyz);
 				float lightDot = clamp(dot(input.normal, lightDir), -1, 1);
 				lightDot = exp(-pow(2 * (1 - lightDot), 1.3));
+            	
 				half4 albedo = input.col;
-				float3 rgb = albedo.rgb * lightDot * _Brightness;
 
+            	float3 rgb = lightDot * _Brightness;
+
+            	if(_isEnabled > 0)
+					rgb *= AdjustContrast(albedo.rgb, _Contrast);
+                else
+					rgb *= _defaultColor;
+            	
 				return half4(rgb, 1);
             }
             ENDHLSL
