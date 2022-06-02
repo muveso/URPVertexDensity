@@ -2,8 +2,8 @@
 
 ### Simply attach Density.shader to your materials and check vertex density based on camera composition.
 
-Tolerance: Scale factor for density calculation.
-Brightness: It makes colors more accurate. (don't overdo it)
+- Tolerance: Scale factor for density calculation.
+- Brightness: It makes colors more accurate. (don't overdo it)
 
 example:
 
