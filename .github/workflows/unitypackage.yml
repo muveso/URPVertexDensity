@@ -8,15 +8,15 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: |
-        find Assets/ -name \*.meta >> metaList
+        find Assets/URPDensityShader -name \*.meta >> metaList
 
-    - run: mkdir unitypackage
+    - run: mkdir a
 
     - uses: pCYSl5EDgo/create-unitypackage@master
       with:
-        package-path: 'unitypackage/URPVertexDensity.unitypackage'
+        package-path: 'a/URPVertexDensity.unitypackage'
         include-files: metaList
     - uses: actions/upload-artifact@master
       with:
-        path: unitypackage
+        path: a
         name: package
