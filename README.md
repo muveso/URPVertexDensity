@@ -1,4 +1,4 @@
-# URPVertexDensity
+# URP Vertex Density Shader
 
 ### Simply attach Density.shader to your materials and check vertex density based on camera composition.
 
